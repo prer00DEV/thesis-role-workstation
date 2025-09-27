@@ -3,7 +3,6 @@
 - name: Install apt packages
   apt:
     name:
-    - golang-go
     - git
     - python3-pip
     - curl
@@ -11,9 +10,27 @@
     update_cache: yes
   become: true
 
+- name: Download Go 1.25.1
+  get_url:
+    url: https://go.dev/dl/go1.25.1.linux-amd64.tar.gz    
+    dest: /tmp/go.tar.gz
+  become: true
+
+- name: Extract Go
+  unarchive:
+    src: /tmp/go.tar.gz
+    dest: /usr/local
+    remote_src: yes
+  become: true
+
+- name: Add Go to debian profile
+  lineinfile:
+    path: /home/debian/.profile
+    line: 'export PATH=/usr/local/go/bin:$PATH'
+  become: true
+
 - name: Install Bettercap
-  ansible.builtin.command: 
-    cmd: go install github.com/bettercap/bettercap@latest
+  command: bash -c "source /home/debian/.profile && go install github.com/bettercap/bettercap@latest"
   become: true
 
 - name: Copy bettercap proxies
