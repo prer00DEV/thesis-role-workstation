@@ -7,6 +7,10 @@
     - python3-pip
     - curl
     - nmap
+    - build-essential
+    - libpcap-dev
+    - libusb-1.0-0-dev
+    - libnetfilter-queue-dev
     update_cache: yes
   become: true
 
@@ -16,21 +20,68 @@
     dest: /tmp/go.tar.gz
   become: true
 
+- name: Remove old Go installation if exists
+  file:
+    path: /usr/local/go
+    state: absent
+  become: true
+
 - name: Extract Go
   unarchive:
     src: /tmp/go.tar.gz
     dest: /usr/local
     remote_src: yes
+    creates: /usr/local/go/bin/go
   become: true
 
-- name: Add Go to debian profile
-  lineinfile:
+- name: Create Go workspace directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: debian
+    group: debian
+    mode: '0755'
+  loop:
+    - /home/debian/go
+    - /home/debian/go/bin
+    - /home/debian/go/src
+    - /home/debian/go/pkg
+  become: true
+
+- name: Add Go environment variables to debian profile
+  blockinfile:
     path: /home/debian/.profile
-    line: 'export PATH=/usr/local/go/bin:$PATH'
-  become: true
+    block: |
+      export GOROOT=/usr/local/go
+      export GOPATH=$HOME/go
+      export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - GO"
+    create: yes
+    owner: debian
+    group: debian
+    mode: '0644'
+  become: true  
 
-- name: Install Bettercap
-  command: bash -c "source /home/debian/.profile && go install github.com/bettercap/bettercap@latest"
+- name: Install Bettercap using Go
+  shell: |
+    export GOROOT=/usr/local/go
+    export GOPATH=/home/debian/go
+    export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
+    go install github.com/bettercap/bettercap@latest
+  args:
+    creates: /home/debian/go/bin/bettercap
+  become: true
+  become_user: debian
+  environment:
+    HOME: /home/debian
+
+- name: Create bettercap proxies directory
+  file:
+    path: /home/debian/proxies
+    state: directory
+    owner: debian
+    group: debian
+    mode: '0755'
   become: true
 
 - name: Copy bettercap proxies
@@ -40,6 +91,7 @@
     owner: debian
     group: debian
     mode: '0644'
+  become: true
 
 - name: Copy bettercap proxy script
   ansible.builtin.template:
