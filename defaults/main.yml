@@ -1,0 +1,5 @@
+hmi_ip: 192.168.1.11
+windplant_ip: 192.168.1.120
+proxy_port: 8502
+tcp_port: 502
+proxy_script: "r_rpm.js"

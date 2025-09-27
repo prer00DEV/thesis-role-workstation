@@ -1,0 +1,33 @@
+---
+
+- name: Install apt packages
+  apt:
+    name:
+    - golang-go
+    - git
+    - python3-pip
+    - curl
+    - nmap
+    update_cache: yes
+  become: true
+
+- name: Install Bettercap
+  ansible.builtin.command: 
+    cmd: go install github.com/bettercap/bettercap@latest
+  become: true
+
+- name: Copy bettercap proxies
+  copy:
+    src: files/
+    dest: /home/debian/proxies/
+    owner: debian
+    group: debian
+    mode: '0644'
+
+- name: Copy bettercap proxy script
+  ansible.builtin.template:
+    src: bettercap_proxy.cap
+    dest: /home/debian/bettercap_proxy.cap
+    owner: debian
+    group: debian
+    mode: '0644'
