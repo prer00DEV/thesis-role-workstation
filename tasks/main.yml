@@ -1,5 +1,11 @@
 ---
 
+- name: Set users to configure
+  set_fact:
+    target_users:
+      - { name: 'debian', home: '/home/debian', shell_rc: '.profile' }
+      - { name: 'root', home: '/root', shell_rc: '.bashrc' }
+
 - name: Install apt packages
   apt:
     name:
@@ -34,46 +40,44 @@
     creates: /usr/local/go/bin/go
   become: true
 
-- name: Create Go workspace directories
+- name: Create Go workspace directories for users
   file:
-    path: "{{ item }}"
+    path: "{{ item[0].home }}/go/{{ item[1] }}"
     state: directory
-    owner: debian
-    group: debian
+    owner: "{{ item[0].name }}"
+    group: "{{ item[0].name }}"
     mode: '0755'
-  loop:
-    - /home/debian/go
-    - /home/debian/go/bin
-    - /home/debian/go/src
-    - /home/debian/go/pkg
+  loop: "{{ target_users | product(['', 'bin', 'src', 'pkg']) | list }}"
   become: true
 
-- name: Add Go environment variables to debian profile
+- name: Add Go environment variables to user profiles
   blockinfile:
-    path: /home/debian/.profile
+    path: "{{ item.home }}/{{ item.shell_rc }}"
     block: |
       export GOROOT=/usr/local/go
       export GOPATH=$HOME/go
       export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
     marker: "# {mark} ANSIBLE MANAGED BLOCK - GO"
     create: yes
-    owner: debian
-    group: debian
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
     mode: '0644'
-  become: true  
+  loop: "{{ target_users }}"
+  become: true
 
-- name: Install Bettercap using Go
+- name: Install Bettercap for each user
   shell: |
     export GOROOT=/usr/local/go
-    export GOPATH=/home/debian/go
+    export GOPATH={{ item.home }}/go
     export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
     go install github.com/bettercap/bettercap@latest
   args:
-    creates: /home/debian/go/bin/bettercap
+    creates: "{{ item.home }}/go/bin/bettercap"
   become: true
-  become_user: debian
+  become_user: "{{ item.name }}"
   environment:
-    HOME: /home/debian
+    HOME: "{{ item.home }}"
+  loop: "{{ target_users }}"
 
 - name: Create bettercap proxies directory
   file:
